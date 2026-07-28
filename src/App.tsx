@@ -2,9 +2,7 @@ import './App.css'
 
 function App() {
   return (
-    <>
-      <h1>Primer deploy</h1>
-    </>
+    <h1>Primer deploy</h1>
   )
 }
 
