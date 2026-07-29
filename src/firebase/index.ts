@@ -1,9 +1,9 @@
 import { getAnalytics } from "firebase/analytics";
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getFunctions } from "firebase/functions";
-import { getStorage } from "firebase/storage";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 
 const firebaseConfig = {
@@ -23,5 +23,12 @@ const auth = getAuth(app);
 const firestore = getFirestore(app);
 const functions = getFunctions(app);
 const storage = getStorage(app);
+
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099")
+  connectFirestoreEmulator(firestore, "http://127.0.0.1", 8080)
+  connectFunctionsEmulator(functions, "http://127.0.0.1", 5001)
+  connectStorageEmulator(storage, "http://127.0.0.1", 9199)
+}
 
 export { analytics, app, auth, firestore, functions, storage }

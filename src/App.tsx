@@ -1,9 +1,8 @@
+import { Login } from './pages/Login'
 import './App.css'
 
 function App() {
-  return (
-    <h1>Primer deploy</h1>
-  )
+  return <Login />;
 }
 
 export default App
