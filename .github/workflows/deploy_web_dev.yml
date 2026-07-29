@@ -1,0 +1,37 @@
+name: Deploy DEV
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Create development environment
+        run: printf '%s' "${{ secrets.ENV_DEV }}" > .env.production
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy Hosting DEV
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TEST_FIREBASE_APP_DEV }}
+          channelId: live
+          projectId: test-firebase-app-dev
