@@ -19,7 +19,6 @@ resource "google_project_iam_member" "piston_monitoring" {
 resource "google_compute_instance_template" "piston" {
   name_prefix  = "${local.prefix}-template-"
   machine_type = var.machine_type
-  region       = var.region
   tags         = ["piston-backend"]
   labels       = local.common_labels
 
@@ -61,6 +60,10 @@ resource "google_compute_instance_template" "piston" {
 }
 
 resource "google_compute_health_check" "piston" {
+  depends_on = [
+    google_project_service.required["compute.googleapis.com"]
+  ]
+
   name                = "${local.prefix}-health"
   check_interval_sec  = 10
   timeout_sec         = 5
@@ -73,9 +76,9 @@ resource "google_compute_health_check" "piston" {
   }
 }
 
-resource "google_compute_region_instance_group_manager" "piston" {
+resource "google_compute_instance_group_manager" "piston" {
   name               = "${local.prefix}-mig"
-  region             = var.region
+  zone               = var.zone
   base_instance_name = "${local.prefix}-vm"
   target_size        = max(var.min_replicas, 1)
 
@@ -94,19 +97,18 @@ resource "google_compute_region_instance_group_manager" "piston" {
   }
 
   update_policy {
-    type                         = "PROACTIVE"
-    minimal_action               = "REPLACE"
-    max_surge_fixed              = 1
-    max_unavailable_fixed        = 0
-    replacement_method           = "SUBSTITUTE"
-    instance_redistribution_type = "PROACTIVE"
+    type                  = "PROACTIVE"
+    minimal_action        = "REPLACE"
+    max_surge_fixed       = 1
+    max_unavailable_fixed = 0
+    replacement_method    = "SUBSTITUTE"
   }
 }
 
-resource "google_compute_region_autoscaler" "piston" {
+resource "google_compute_autoscaler" "piston" {
   name   = "${local.prefix}-autoscaler"
-  region = var.region
-  target = google_compute_region_instance_group_manager.piston.id
+  zone   = var.zone
+  target = google_compute_instance_group_manager.piston.id
 
   autoscaling_policy {
     min_replicas    = var.min_replicas
@@ -115,14 +117,6 @@ resource "google_compute_region_autoscaler" "piston" {
 
     cpu_utilization {
       target = var.autoscaling_cpu_target
-    }
-
-    scale_in_control {
-      time_window_sec = 300
-
-      max_scaled_in_replicas {
-        fixed = 1
-      }
     }
   }
 }

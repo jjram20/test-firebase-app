@@ -6,7 +6,7 @@ resource "google_compute_region_backend_service" "piston" {
   health_checks         = [google_compute_health_check.piston.id]
 
   backend {
-    group          = google_compute_region_instance_group_manager.piston.instance_group
+    group          = google_compute_instance_group_manager.piston.instance_group
     balancing_mode = "CONNECTION"
   }
 

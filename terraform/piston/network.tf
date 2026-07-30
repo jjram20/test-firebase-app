@@ -2,7 +2,9 @@ resource "google_compute_network" "piston" {
   name                    = "${local.prefix}-vpc"
   auto_create_subnetworks = false
 
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required["compute.googleapis.com"]
+  ]
 }
 
 resource "google_compute_subnetwork" "piston" {
