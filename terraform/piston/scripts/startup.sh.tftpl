@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec > >(tee -a /var/log/piston-startup.log | logger -t piston-startup) 2>&1
+
+export DEBIAN_FRONTEND=noninteractive
+PISTON_DIR="/opt/piston"
+PISTON_PORT="${piston_port}"
+PISTON_GIT_REF="${piston_git_ref}"
+
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl git docker.io docker-compose-plugin
+systemctl enable --now docker
+
+if [[ ! -d "$PISTON_DIR/.git" ]]; then
+  rm -rf "$PISTON_DIR"
+  git clone https://github.com/engineer-man/piston.git "$PISTON_DIR"
+fi
+
+cd "$PISTON_DIR"
+git fetch --all --tags --prune
+git checkout "$PISTON_GIT_REF"
+git pull --ff-only || true
+
+# Piston expone por defecto la API en el puerto 2000. El override mantiene
+# explícito el binding en todas las interfaces para el balanceador interno.
+cat > docker-compose.override.yaml <<YAML
+services:
+  api:
+    ports:
+      - "0.0.0.0:$PISTON_PORT:2000"
+YAML
+
+docker compose pull
+docker compose up -d --remove-orphans
+
+# Espera hasta que la API esté disponible antes de finalizar el startup script.
+for attempt in $(seq 1 60); do
+  if curl --fail --silent "http://127.0.0.1:$PISTON_PORT/api/v2/runtimes" >/dev/null; then
+    exit 0
+  fi
+  sleep 10
+done
+
+exit 1
