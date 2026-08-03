@@ -7,9 +7,61 @@ PISTON_DIR="/opt/piston"
 PISTON_PORT="${piston_port}"
 PISTON_GIT_REF="${piston_git_ref}"
 
+echo "Installing Docker dependencies..."
+
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl git docker.io docker-compose-plugin
+apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  git \
+  nodejs \
+  npm
+
+# Elimina paquetes que podrían entrar en conflicto con Docker CE.
+for package in \
+  docker.io \
+  docker-compose \
+  docker-doc \
+  podman-docker \
+  containerd \
+  runc
+do
+  apt-get remove -y "$package" || true
+done
+
+install -m 0755 -d /etc/apt/keyrings
+
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  -o /etc/apt/keyrings/docker.asc
+
+chmod a+r /etc/apt/keyrings/docker.asc
+
+. /etc/os-release
+
+cat > /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: $${VERSION_CODENAME}
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+apt-get update
+
+apt-get install -y --no-install-recommends \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
+
 systemctl enable --now docker
+
+docker --version
+docker compose version
+
+echo "Preparing Piston repository..."
 
 if [[ ! -d "$PISTON_DIR/.git" ]]; then
   rm -rf "$PISTON_DIR"
@@ -30,15 +82,114 @@ services:
       - "0.0.0.0:$PISTON_PORT:2000"
 YAML
 
+echo "Starting Piston..."
+
+docker compose config
 docker compose pull
 docker compose up -d --remove-orphans
 
-# Espera hasta que la API esté disponible antes de finalizar el startup script.
+echo "Waiting for Piston API..."
+
+PISTON_READY=false
+
+# Espera hasta que la API esté disponible antes de instalar los runtimes.
 for attempt in $(seq 1 60); do
-  if curl --fail --silent "http://127.0.0.1:$PISTON_PORT/api/v2/runtimes" >/dev/null; then
-    exit 0
+  if curl --fail --silent \
+    "http://127.0.0.1:$PISTON_PORT/api/v2/runtimes" \
+    >/dev/null;
+  then
+    echo "Piston API is ready"
+    PISTON_READY=true
+    break
   fi
+
+  echo "Piston is not ready yet. Attempt $attempt/60."
   sleep 10
 done
 
-exit 1
+if [[ "$PISTON_READY" != "true" ]]; then
+  echo "Piston API did not become ready."
+
+  docker compose ps || true
+  docker compose logs --tail=200 || true
+
+  exit 1
+fi
+
+echo "Checking Python runtime..."
+
+RUNTIMES="$(
+  curl --fail --silent \
+    "http://127.0.0.1:$PISTON_PORT/api/v2/runtimes"
+)"
+
+if echo "$RUNTIMES" \
+  | grep -Eq '"language"[[:space:]]*:[[:space:]]*"python"';
+then
+  echo "Python runtime is already installed."
+else
+  echo "Installing Piston CLI dependencies..."
+
+  cd "$PISTON_DIR/cli"
+  npm install
+
+  echo "Installing Python 3.12.0 runtime..."
+
+  node index.js ppman install python=3.12.0
+fi
+
+echo "Verifying Python runtime..."
+
+RUNTIMES="$(
+  curl --fail --silent \
+    "http://127.0.0.1:$PISTON_PORT/api/v2/runtimes"
+)"
+
+if ! echo "$RUNTIMES" \
+  | grep -Eq '"language"[[:space:]]*:[[:space:]]*"python"';
+then
+  echo "Python runtime installation failed."
+  echo "$RUNTIMES"
+
+  cd "$PISTON_DIR"
+  docker compose ps || true
+  docker compose logs --tail=200 api || true
+
+  exit 1
+fi
+
+echo "Testing Python execution..."
+
+TEST_RESPONSE="$(
+  curl --fail --silent \
+    -X POST \
+    -H "Content-Type: application/json" \
+    "http://127.0.0.1:$PISTON_PORT/api/v2/execute" \
+    -d '{
+      "language": "python",
+      "version": "3.12.0",
+      "files": [
+        {
+          "name": "main.py",
+          "content": "print(\"Piston startup test successful\")"
+        }
+      ]
+    }'
+)"
+
+echo "$TEST_RESPONSE"
+
+if ! echo "$TEST_RESPONSE" \
+  | grep -q "Piston startup test successful";
+then
+  echo "Python runtime was installed, but the execution test failed."
+
+  cd "$PISTON_DIR"
+  docker compose ps || true
+  docker compose logs --tail=200 api || true
+
+  exit 1
+fi
+
+echo "Piston startup completed successfully."
+exit 0
