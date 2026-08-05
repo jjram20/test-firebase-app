@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "test-firebase-app-ed589",
+    "dev": "test-firebase-app-dev",
+    "prod": "test-firebase-app-ed589"
+  },
+  "targets": {},
+  "etags": {}
+}
