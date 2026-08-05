@@ -1,0 +1,28 @@
+- Obtener nombre de VM en GCP
+
+gcloud compute instances list
+
+- Conexión SSH (cambiar nombre instancia)
+
+gcloud compute ssh piston-dev-... --zone us-central1-a
+
+- Verificar ejecución Piston
+
+curl http://127.0.0.1:2000/api/v2/runtimes
+
+- Ejecución de código en máquina virtual
+
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  http://127.0.0.1:2000/api/v2/execute \
+  -d '{
+    "language": "python",
+    "version": "*",
+    "files": [
+      {
+        "name": "main.py",
+        "content": "print(\"Hola desde la VM\")"
+      }
+    ]
+  }'
