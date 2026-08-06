@@ -3,7 +3,9 @@ locals {
     "compute.googleapis.com",
     "iam.googleapis.com",
     "logging.googleapis.com",
-    "monitoring.googleapis.com"
+    "monitoring.googleapis.com",
+    "run.googleapis.com",
+    "artifactregistry.googleapis.com"
   ])
 }
 

@@ -26,3 +26,12 @@ curl \
       }
     ]
   }'
+
+# Generar imagen Docker
+
+En carpeta donde se encuentra el Dockerfile, es decir en la carpeta piston-api
+
+gcloud builds submit \
+  --project PROJECT_ID \
+  --tag us-central1-docker.pkg.dev/PROJECT_ID/piston-api/piston-api:load-test \
+  ./terraform/piston-api

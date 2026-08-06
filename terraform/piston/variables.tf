@@ -42,7 +42,7 @@ variable "machine_type" {
 variable "min_replicas" {
   description = "Número mínimo de VMs. Use 0 para permitir apagado total por inactividad."
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "max_replicas" {
@@ -72,11 +72,46 @@ variable "piston_git_ref" {
 variable "client_source_ranges" {
   description = "Rangos internos autorizados para invocar Piston."
   type        = list(string)
-  default     = ["10.8.0.0/28", "10.10.1.0/24"]
+  default     = ["10.10.1.0/24"]
 }
 
 variable "labels" {
   description = "Etiquetas adicionales para los recursos."
   type        = map(string)
   default     = {}
+}
+
+variable "piston_api_image" {
+  description = "Imagen Docker completa usada por Cloud Run."
+  type        = string
+}
+
+variable "allow_public_test_access" {
+  description = "Permite invocar Cloud Run sin autenticación durante pruebas."
+  type        = bool
+  default     = false
+}
+
+variable "cloud_run_min_instances" {
+  description = "Número mínimo de instancias de Cloud Run."
+  type        = number
+  default     = 0
+}
+
+variable "cloud_run_max_instances" {
+  description = "Número máximo de instancias de Cloud Run."
+  type        = number
+  default     = 3
+}
+
+variable "cloud_run_concurrency" {
+  description = "Máximo de solicitudes concurrentes por instancia."
+  type        = number
+  default     = 10
+}
+
+variable "cloud_run_timeout" {
+  description = "Timeout de cada solicitud de Cloud Run."
+  type        = string
+  default     = "30s"
 }
