@@ -12,7 +12,7 @@ resource "google_cloud_run_v2_service" "piston_api" {
   deletion_protection = false
 
   ingress              = "INGRESS_TRAFFIC_ALL"
-  invoker_iam_disabled = var.allow_public_test_access
+  invoker_iam_disabled = false
 
   template {
     service_account                  = google_service_account.piston_api.email

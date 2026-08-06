@@ -86,12 +86,6 @@ variable "piston_api_image" {
   type        = string
 }
 
-variable "allow_public_test_access" {
-  description = "Permite invocar Cloud Run sin autenticación durante pruebas."
-  type        = bool
-  default     = false
-}
-
 variable "cloud_run_min_instances" {
   description = "Número mínimo de instancias de Cloud Run."
   type        = number

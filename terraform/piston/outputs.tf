@@ -19,3 +19,13 @@ output "subnetwork_name" {
 output "instance_group" {
   value = google_compute_instance_group_manager.piston.instance_group
 }
+
+output "piston_api_url" {
+  description = "URL autenticada de Cloud Run que debe consumir Firebase Functions."
+  value       = google_cloud_run_v2_service.piston_api.uri
+}
+
+output "firebase_piston_function_service_account" {
+  description = "Cuenta de servicio que debe utilizar la Firebase Function executeCode."
+  value       = google_service_account.firebase_piston_function.email
+}
