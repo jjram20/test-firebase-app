@@ -1,0 +1,3 @@
+project_id               = "<PROJECT_ID>"
+piston_api_image         = "region-docker.pkg.dev/..."
+allow_public_test_access = true
