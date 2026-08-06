@@ -102,10 +102,10 @@ const parseFile = (
     );
   }
 
-  const content = parseRequiredString(
+  const content = parseCodeContent(
     value.content,
     `files[${index}].content`,
-  );
+    );
 
   const codeSize = Buffer.byteLength(content, "utf8");
 
@@ -144,6 +144,20 @@ const parseFiles = (value: unknown): ExecuteCodeFile[] => {
   }
 
   return value.map(parseFile);
+};
+
+const parseCodeContent = (
+  value: unknown,
+  fieldName: string,
+): string => {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new HttpsError(
+      "invalid-argument",
+      `El campo '${fieldName}' es obligatorio.`,
+    );
+  }
+
+  return value;
 };
 
 export const parseExecuteCodeInput = (

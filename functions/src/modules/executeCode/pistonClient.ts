@@ -1,5 +1,5 @@
-import {GoogleAuth} from "google-auth-library";
 import * as logger from "firebase-functions/logger";
+import {GoogleAuth} from "google-auth-library";
 
 import {pistonConfig} from "../../config/piston";
 import {ExternalServiceError} from "../../shared/errors/externalServiceError";
@@ -25,7 +25,7 @@ const isHttpErrorLike = (
   return typeof error === "object" && error !== null;
 };
 
-const getErrorStatus = (
+const getHttpStatusCode = (
   error: unknown,
 ): number | undefined => {
   if (!isHttpErrorLike(error)) {
@@ -35,15 +35,20 @@ const getErrorStatus = (
   return error.response?.status;
 };
 
-const isTimeoutError = (error: unknown): boolean => {
+const isTimeoutError = (
+  error: unknown,
+): boolean => {
   if (!isHttpErrorLike(error)) {
     return false;
   }
 
+  const message = error.message?.toLowerCase() ?? "";
+
   return (
     error.code === "ETIMEDOUT" ||
     error.code === "ECONNABORTED" ||
-    error.message?.toLowerCase().includes("timeout") === true
+    message.includes("timeout") ||
+    message.includes("deadline")
   );
 };
 
@@ -51,21 +56,27 @@ export const executePistonRequest = async (
   payload: PistonExecuteRequest,
 ): Promise<PistonExecuteResponse> => {
   try {
+    const targetAudience = pistonConfig.apiUrl;
+
     const client = await googleAuth.getIdTokenClient(
-      pistonConfig.apiUrl,
+      targetAudience,
     );
 
-    const response = await client.request<PistonExecuteResponse>({
-      url: pistonConfig.apiUrl,
-      method: "POST",
-      data: payload,
-      timeout: pistonConfig.requestTimeoutMs,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response =
+      await client.request<PistonExecuteResponse>({
+        url: targetAudience,
+        method: "POST",
+        data: payload,
+        timeout: pistonConfig.requestTimeoutMs,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (!response.data || typeof response.data !== "object") {
+    if (
+      !response.data ||
+      typeof response.data !== "object"
+    ) {
       throw new ExternalServiceError(
         "BAD_RESPONSE",
         "Piston devolvió una respuesta inválida.",
@@ -79,45 +90,49 @@ export const executePistonRequest = async (
       throw error;
     }
 
-    const status = getErrorStatus(error);
+    const statusCode = getHttpStatusCode(error);
 
     logger.error("Error calling Piston API", {
-      status,
-      error,
+      statusCode,
+      originalError: error,
     });
 
     if (isTimeoutError(error)) {
       throw new ExternalServiceError(
         "TIMEOUT",
         "La solicitud a Piston superó el tiempo permitido.",
-        status,
-        {cause: error},
+        statusCode,
+        error,
       );
     }
 
-    if (status === 401 || status === 403) {
+    if (statusCode === 401 || statusCode === 403) {
       throw new ExternalServiceError(
         "UNAUTHORIZED",
         "La Function no está autorizada para invocar Cloud Run.",
-        status,
-        {cause: error},
+        statusCode,
+        error,
       );
     }
 
-    if (status !== undefined && status >= 400 && status < 500) {
+    if (
+      statusCode !== undefined &&
+      statusCode >= 400 &&
+      statusCode < 500
+    ) {
       throw new ExternalServiceError(
         "BAD_RESPONSE",
         "Piston rechazó la solicitud.",
-        status,
-        {cause: error},
+        statusCode,
+        error,
       );
     }
 
     throw new ExternalServiceError(
       "UNAVAILABLE",
       "El servicio de Piston no está disponible.",
-      status,
-      {cause: error},
+      statusCode,
+      error,
     );
   }
 };

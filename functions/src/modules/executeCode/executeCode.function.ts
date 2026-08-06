@@ -47,6 +47,7 @@ export const executeCode = onCall(
     maxInstances: 3,
     concurrency: 10,
     enforceAppCheck: false,
+    serviceAccount: process.env.PISTON_FUNCTION_SERVICE_ACCOUNT,
   },
   async (request): Promise<ExecuteCodeResult> => {
     if (!request.auth) {

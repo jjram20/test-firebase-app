@@ -1,4 +1,6 @@
-const getRequiredEnvironmentVariable = (name: string): string => {
+const getRequiredEnvironmentVariable = (
+  name: string,
+): string => {
   const value = process.env[name]?.trim();
 
   if (!value) {
@@ -11,10 +13,11 @@ const getRequiredEnvironmentVariable = (name: string): string => {
 };
 
 export const pistonConfig = {
-  apiUrl: getRequiredEnvironmentVariable("PISTON_API_URL"),
+  get apiUrl(): string {
+    return getRequiredEnvironmentVariable("PISTON_API_URL");
+  },
 
   requestTimeoutMs: 25_000,
-
   maxFiles: 1,
   maxCodeSizeBytes: 10_000,
 
